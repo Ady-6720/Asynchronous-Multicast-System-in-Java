@@ -1,6 +1,5 @@
 # Asynchronous-Multicast-System-in-Java
 
-```markdown
 # Programming Projects 3: Persistent and Asynchronous Multicast System
 
 ## About The Project
@@ -27,7 +26,7 @@ The repository contains two separate folders for the project, with distinct part
 
 ### Coding Language
 
-The project is implemented in Java (version 11.0.10).
+The project is implemented in Java 
 
 ### Pre-requisites
 
