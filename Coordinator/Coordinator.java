@@ -1,0 +1,370 @@
+import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.net.*;
+import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
+import java.util.TreeMap;
+
+
+class Globals {
+
+  public static final Map<Integer, Socket> participantMap = new HashMap<>();
+  public static final List<Integer> activeParticipants = new ArrayList<>();
+  public static final Map<Long, String> messageMap = new TreeMap<>();
+  public static final Map<Long, List<Integer>> nonMessageRecipients = new TreeMap<>();
+}
+
+class connectionThread extends Thread {
+
+  private int port;
+  private int timeout;
+
+  connectionThread(int port, int timeout) {
+    this.port = port;
+    this.timeout = timeout;
+    System.out.println("Initializing connectionThread with port: " + port + " and timeout: " + timeout + "ms.");
+  }
+
+
+  @Override
+  public void run() {
+    try (ServerSocket server = new ServerSocket(port)) {
+      System.out.println("Coordinator operational, listening on: " + port);
+
+      while (!Thread.interrupted()) {
+        System.out.println("Ready to accept a new participant...");
+
+        try {
+          Socket socket = server.accept();
+          System.out.println("New participant connection established.");
+
+          DataInputStream in = new DataInputStream(socket.getInputStream());
+          DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+          new workerThread(in, out, timeout).start();
+        } catch (IOException e) {
+          System.out.println("Failed to establish connection with participant: " + e.getMessage());
+        }
+      }
+    } catch (IOException e) {
+      System.out.println("Failed to start server on port " + port + ": " + e.getMessage());
+    }
+  }
+
+}
+
+
+class messageSender extends Thread {
+
+  private String message;
+  private Integer senderID;
+
+  messageSender(String message, Integer senderID) {
+    this.message = message;
+    this.senderID = senderID;
+  }
+  //---------------------------------------------------------------------------done rfr---------------------------------------------------
+  @Override
+  public void run() {
+    // Iterate over active participants to send the message
+    Globals.activeParticipants.forEach(participantID -> {
+      if (!participantID.equals(senderID)) {
+        try {
+          Socket socket = Globals.participantMap.get(participantID);
+          if (socket != null && !socket.isClosed()) {
+            DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+            out.writeUTF(message);
+            System.out.println("Sent message to Participant ID: " + participantID);
+          }
+        } catch (IOException e) {
+          System.out.println("Error sending message to Participant ID: " + participantID + ", Error: " + e.getMessage());
+        }
+      }
+    });
+
+    // Check and record non-active participants for the message
+    recordMessageForNonActiveParticipants();
+  }
+
+  private void recordMessageForNonActiveParticipants() {
+    long currentTime = System.currentTimeMillis();
+    List<Integer> nonRecipients = new ArrayList<>();
+
+    // Identify non-active participants.
+    Globals.participantMap.keySet().stream()
+            .filter(participantID -> !Globals.activeParticipants.contains(participantID))
+            .forEach(nonRecipients::add);
+
+    if (!nonRecipients.isEmpty()) {
+      Globals.messageMap.put(currentTime, message);
+      Globals.nonMessageRecipients.put(currentTime, nonRecipients);
+
+      // Log the message recording for non-active participants.
+      System.out.println("Recorded message for non-active participants: " + nonRecipients);
+
+      // Display the list of inactive participants.
+      System.out.println("Inactive participants at " + currentTime + ": " + nonRecipients);
+    } else {
+      System.out.println("No non-active participants to record message for at " + currentTime);
+    }
+  }
+
+}
+
+
+class workerThread extends Thread {
+
+  private int timeout;
+  private DataInputStream in = null;
+  private DataOutputStream out = null;
+
+  workerThread(DataInputStream in, DataOutputStream out, int timeout) {
+    this.timeout = timeout;
+    this.in = in;
+    this.out = out;
+  }
+
+  private void removeOldMessages(long time) {
+    for (Long messageTime : Globals.messageMap.keySet()) {
+      if ((time - messageTime) / 1000 > timeout) {
+        Globals.messageMap.remove(messageTime);
+        Globals.nonMessageRecipients.remove(messageTime);
+      }
+    }
+  }
+
+  // constructor with port
+  @Override
+  public void run() {
+    // starts server and waits for a connection
+    try {
+      String input = "";
+      String errorMessage = "Requested participant not registered yet!";
+      while (!input.equals("quit")) {
+        input = in.readUTF();
+        System.out.println("Participant input:" + input.split("#")[0]); //needs to be input.split("#")[0]
+        removeOldMessages(System.currentTimeMillis());
+        //----------------------------------------------------------------------done rfr--------------------------------
+        if (input.indexOf("register") == 0) {
+          String[] participantInput = input.split("#");
+          try {
+            Integer participantID = Integer.parseInt(participantInput[1]);
+            String participantIP = participantInput[2];
+            int participantListenPort = Integer.parseInt(participantInput[3]);
+
+            System.out.println("Attempting to register new participant with ID: " + participantID);
+
+            try {
+              Socket socket = new Socket(participantIP, participantListenPort);
+              Globals.participantMap.put(participantID, socket);
+              Globals.activeParticipants.add(participantID);
+
+              System.out.println("Participant with ID " + participantID + " registered successfully.");
+              out.writeUTF("Participant registered with ID " + participantID);
+            } catch (IOException e) {
+              System.err.println("Failed to register participant with ID " + participantID + ": " + e.getMessage());
+              out.writeUTF("Failed to register participant.");
+            }
+          } catch (NumberFormatException e) {
+            System.err.println("Invalid participant ID format: " + e.getMessage());
+            out.writeUTF("Invalid registration command format.");
+          } catch (IOException e) {
+            System.err.println("Error sending registration confirmation: " + e.getMessage());
+          }
+        }
+        //---------------------------------------------------------------------------------done rfr--------------------
+        else if (input.contains("deregister")) {
+          String[] participantInput = input.split("#");
+          try {
+            Integer participantID = Integer.parseInt(participantInput[1]);
+            System.out.println("Attempting to deregister participant with ID: " + participantID);
+
+            if (Globals.participantMap.containsKey(participantID)) {
+              try {
+                if (Globals.participantMap.get(participantID) != null) {
+                  Globals.participantMap.get(participantID).close();
+                  Globals.activeParticipants.remove(participantID);
+                  System.out.println("Participant with ID " + participantID + " successfully deregistered and disconnected.");
+                } else {
+                  System.out.println("Participant with ID " + participantID + " is already disconnected.");
+                }
+                Globals.participantMap.remove(participantID);
+                out.writeUTF("Participant deregistered");
+              } catch (IOException e) {
+                System.err.println("Failed to close connection for participant with ID " + participantID + ": " + e.getMessage());
+                out.writeUTF("Failed to fully deregister participant.");
+              }
+            } else {
+              System.err.println("Attempt to deregister a non-existing participant with ID: " + participantID);
+              out.writeUTF(errorMessage);
+            }
+          } catch (NumberFormatException e) {
+            System.err.println("Invalid participant ID format for deregistration: " + e.getMessage());
+            out.writeUTF("Invalid deregister command format.");
+          } catch (IOException e) {
+            System.err.println("Error sending deregistration confirmation: " + e.getMessage());
+          }
+        }
+
+        //---------------------------------------------------------------------------done rfr------------------------------
+        else if (input.contains("reconnect")) {
+          String[] participantInput = input.split("#");
+          try {
+            Integer participantID = Integer.parseInt(participantInput[1]);
+            System.out.println("Attempting to reconnect participant with ID: " + participantID);
+
+            if (Globals.participantMap.containsKey(participantID)) {
+              if (!Globals.activeParticipants.contains(participantID)) {
+                String participantIP = participantInput[2];
+                int participantListenPort = Integer.parseInt(participantInput[3]);
+                try {
+                  Socket socket = new Socket(participantIP, participantListenPort);
+                  Globals.participantMap.put(participantID, socket);
+                  Globals.activeParticipants.add(participantID);
+                  out.writeUTF("Participant reconnected");
+                  System.out.println("Participant with ID " + participantID + " successfully reconnected.");
+
+                  Map<Long, String> copyMessageMap = new TreeMap<>(Globals.messageMap);
+                  for (Long messageTime : copyMessageMap.keySet()) {
+                    if (Globals.nonMessageRecipients.containsKey(messageTime) &&
+                            Globals.nonMessageRecipients.get(messageTime).contains(participantID)) {
+                      try (DataOutputStream resend = new DataOutputStream(socket.getOutputStream())) {
+                        resend.writeUTF(Globals.messageMap.get(messageTime));
+                        System.out.println("Resent old message to participant ID " + participantID);
+                      } catch (IOException e) {
+                        System.err.println("Failed to resend message to participant ID " + participantID + ": " + e.getMessage());
+                      }
+                      Globals.nonMessageRecipients.get(messageTime).remove(participantID);
+                      if (Globals.nonMessageRecipients.get(messageTime).isEmpty()) {
+                        Globals.nonMessageRecipients.remove(messageTime);
+                        Globals.messageMap.remove(messageTime);
+                      }
+                    }
+                  }
+                  copyMessageMap.clear();
+                } catch (IOException e) {
+                  System.err.println("Failed to reconnect participant ID " + participantID + ": " + e.getMessage());
+                  out.writeUTF("Failed to reconnect.");
+                }
+              } else {
+                System.out.println("Requested Participant ID " + participantID + " is already connected.");
+                out.writeUTF("Requested Participant is already Connected");
+              }
+            } else {
+              System.err.println("Reconnect attempt for non-existing participant ID: " + participantID);
+              out.writeUTF(errorMessage);
+            }
+          } catch (NumberFormatException e) {
+            System.err.println("Invalid participant ID format for reconnecting: " + e.getMessage());
+            out.writeUTF("Invalid reconnect command format.");
+          } catch (IOException e) {
+            System.err.println("Error sending message for reconnect attempt: " + e.getMessage());
+          }
+        }
+
+        //---------------------------------------------------------------------------done rfr---------------------------------------------------
+        else if (input.contains("disconnect")) {
+          String[] particpantInput = input.split("#");
+          try {
+            Integer participantID = Integer.parseInt(particpantInput[1]);
+            System.out.println("Attempting to disconnect participant with ID: " + participantID);
+
+            if (Globals.participantMap.containsKey(participantID)) {
+              try {
+                Globals.participantMap.get(participantID).close();
+                System.out.println("Participant with ID " + participantID + " has been disconnected.");
+
+                Globals.participantMap.put(participantID, null);
+                Globals.activeParticipants.remove(participantID);
+                out.writeUTF("Participant disconnected");
+              } catch (IOException e) {
+                System.err.println("Error disconnecting participant with ID " + participantID + ": " + e.getMessage());
+                out.writeUTF("Error disconnecting participant.");
+              }
+            } else {
+              System.err.println("No participant found with ID: " + participantID);
+              out.writeUTF(errorMessage);
+            }
+          } catch (NumberFormatException e) {
+            System.err.println("Invalid participant ID format: " + e.getMessage());
+            out.writeUTF("Invalid disconnect command format.");
+          } catch (IOException e) {
+            System.err.println("Error sending message to participant: " + e.getMessage());
+          }
+        }
+        //---------------------------------------------------------------------------done rfr---------------------------------------------------
+        else if (input.contains("msend")) {
+          String[] particpantInput = input.split("#");
+          try {
+            int senderID = Integer.parseInt(particpantInput[2]);
+            System.out.println("Received msend request from participant ID: " + senderID);
+
+            if (Globals.participantMap.containsKey(senderID)) {
+              if (Globals.activeParticipants.contains(senderID)) {
+                String message = particpantInput[1];
+                System.out.println("Sending message from ID " + senderID + ": \"" + message + "\"");
+                new messageSender(message, senderID).start();
+                out.writeUTF("Message Acknowledged");
+              } else {
+                System.err.println("msend request from a non-connected participant ID: " + senderID);
+                out.writeUTF("Requested Participant is not Connected");
+              }
+            } else {
+              System.err.println("msend request for a non-existing participant ID: " + senderID);
+              out.writeUTF(errorMessage);
+            }
+          } catch (NumberFormatException e) {
+            System.err.println("Invalid sender ID format in msend request: " + e.getMessage());
+            out.writeUTF("Invalid msend command format.");
+          } catch (IOException e) {
+            System.err.println("Error sending acknowledgement for msend request: " + e.getMessage());
+          }
+        }
+
+      }
+    } catch (IOException i) {
+      System.out.println("workerThread: Exception is caught" + i.getMessage());
+    }
+  }
+}
+
+//---------------------------------------------------------------------------done rfr---------------------------------------------------
+public class Coordinator {
+
+  public Coordinator(int port, int timeout) {
+    // Launches the connection handling thread with specified port and timeout
+    new connectionThread(port, timeout).start();
+  }
+
+  public static void main(String[] args) {
+    // Validate the command-line arguments for the configuration file path
+    if (args.length != 1) {
+      System.out.println("Error: Missing arguments. Usage: java Coordinator <configuration-file-path>");
+      return;
+    }
+
+    File configFile = new File(args[0]);
+    if (!configFile.exists() || !configFile.isFile()) {
+      System.out.println("Error: Configuration file not found at " + args[0]);
+      return;
+    }
+
+    try (Scanner scanner = new Scanner(configFile)) {
+      int coordinatorListenPort = Integer.parseInt(scanner.nextLine().trim());
+      int messageTimeout = Integer.parseInt(scanner.nextLine().trim());
+
+      // Start the coordinator with the configuration
+      new Coordinator(coordinatorListenPort, messageTimeout);
+      System.out.println("Coordinator is running...");
+    } catch (FileNotFoundException e) {
+      System.out.println("Error: Unable to open the configuration file at " + args[0]);
+    } catch (NumberFormatException e) {
+      System.out.println("Error: Invalid format in configuration file. Ensure it contains port and timeout values.");
+    }
+  }
+}
