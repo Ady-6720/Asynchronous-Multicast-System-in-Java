@@ -55,6 +55,17 @@ java Participant participant-conf.txt
 ```
 
 Configuration files are included in the repository.
+## Important Note
+
+:warning: **Before running the participant script, ensure you modify the participant configuration files with the correct IP address of the coordinator.** This step is crucial for the successful registration and communication between the participant and the coordinator in the multicast system.
+
+The configuration files are located within each project's Client directory. You'll need to replace the placeholder IP address with the actual IP address of the machine where the Coordinator script is running.
+
+Example of configuration file adjustment:
+- Find the line that specifies the coordinator's IP address, typically formatted as `coordinatorIP=<IP_ADDRESS>`.
+- Replace `<IP_ADDRESS>` with the actual IP address of your coordinator.
+
+Failure to update the configuration files with the correct IP address may result in participants being unable to connect to the multicast system.
 
 ## Implemented Functionalities
 
@@ -73,8 +84,7 @@ All received messages at the participant are stored in a text file specified in 
 
 ## Assumptions
 
-1. Configuration files must be available in their respective directories and written in the standard format as described [here](https://cobweb.cs.uga.edu/~laks/DCS-2016-Sp/pp3/PP3-participant-conf.txt).
-2. No more than 10 participants are expected in this system.
+1. No more than 10 participants are expected in this system.
 3. Messages are only stored at the coordinator when it is live (not stored on an external file for persistence).
 4. Participants are only allowed to input a port number from a valid port range.
 
@@ -88,4 +98,4 @@ This project was done in its entirety by **Aditya Malode** and **Yash Joshi**. W
 2. Yash Joshi
 ```
 
-This structured README.md format is designed for clarity and easy navigation within your GitHub repository, making it straightforward for others to understand the purpose, structure, and usage of your project.
+
