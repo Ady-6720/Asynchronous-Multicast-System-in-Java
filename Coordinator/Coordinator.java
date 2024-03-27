@@ -22,41 +22,43 @@ class Globals {
 
 class connectionThread extends Thread {
 
-  private int port;
-  private int timeout;
-
-  connectionThread(int port, int timeout) {
-    this.port = port;
-    this.timeout = timeout;
-    System.out.println("Initializing connectionThread with port: " + port + " and timeout: " + timeout + "ms.");
-  }
-
-
-  @Override
-  public void run() {
-    try (ServerSocket server = new ServerSocket(port)) {
-      System.out.println("Coordinator operational, listening on: " + port);
-
-      while (!Thread.interrupted()) {
-        System.out.println("Ready to accept a new participant...");
-
-        try {
-          Socket socket = server.accept();
-          System.out.println("New participant connection established.");
-
-          DataInputStream in = new DataInputStream(socket.getInputStream());
-          DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-          new workerThread(in, out, timeout).start();
-        } catch (IOException e) {
-          System.out.println("Failed to establish connection with participant: " + e.getMessage());
-        }
-      }
-    } catch (IOException e) {
-      System.out.println("Failed to start server on port " + port + ": " + e.getMessage());
+    private int port;
+    private int timeout;
+    connectionThread(int port, int timeout) {
+        this.port = port;
+        this.timeout = timeout;
+        System.out.println("Connection thread initialized with port: " + port + " and timeout: " + timeout + "ms.");
     }
-  }
 
+    @Override
+    public void run() {
+        try (ServerSocket server = new ServerSocket(port)) {
+            System.out.println("Server listening on port: " + port);
+
+            // Continuously accepting new connections unless interrupted
+            while (!Thread.interrupted()) {
+                System.out.println("Awaiting new connection...");
+
+                try {
+                    Socket socket = server.accept();
+                    System.out.println("Connection established with a new participant.");
+
+                    // Setting up data streams for communication
+                    DataInputStream in = new DataInputStream(socket.getInputStream());
+                    DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+
+                    // Starting a new thread for handling this participant
+                    new workerThread(in, out, timeout).start();
+                } catch (IOException e) {
+                    System.err.println("Connection attempt failed: " + e.getMessage());
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Server could not start on port " + port + ": " + e.getMessage());
+        }
+    }
 }
+
 
 
 class messageSender extends Thread {
@@ -68,10 +70,9 @@ class messageSender extends Thread {
     this.message = message;
     this.senderID = senderID;
   }
-  //---------------------------------------------------------------------------done rfr---------------------------------------------------
+  //---------------------------------------------------------------------------done ---------------------------------------------------
   @Override
   public void run() {
-    // Iterate over active participants to send the message
     Globals.activeParticipants.forEach(participantID -> {
       if (!participantID.equals(senderID)) {
         try {
@@ -86,16 +87,12 @@ class messageSender extends Thread {
         }
       }
     });
-
-    // Check and record non-active participants for the message
     recordMessageForNonActiveParticipants();
   }
 
   private void recordMessageForNonActiveParticipants() {
     long currentTime = System.currentTimeMillis();
     List<Integer> nonRecipients = new ArrayList<>();
-
-    // Identify non-active participants.
     Globals.participantMap.keySet().stream()
             .filter(participantID -> !Globals.activeParticipants.contains(participantID))
             .forEach(nonRecipients::add);
@@ -103,8 +100,6 @@ class messageSender extends Thread {
     if (!nonRecipients.isEmpty()) {
       Globals.messageMap.put(currentTime, message);
       Globals.nonMessageRecipients.put(currentTime, nonRecipients);
-
-      // Log the message recording for non-active participants.
       System.out.println("Recorded message for non-active participants: " + nonRecipients);
 
       // Display the list of inactive participants.
@@ -144,12 +139,12 @@ class workerThread extends Thread {
     // starts server and waits for a connection
     try {
       String input = "";
-      String errorMessage = "Requested participant not registered yet!";
+      String errorMessage = "You ARE NOT REGISTERED!!";
       while (!input.equals("quit")) {
         input = in.readUTF();
-        System.out.println("Participant input:" + input.split("#")[0]); //needs to be input.split("#")[0]
+        System.out.println("Participant input: " + input.split("#")[0]);
         removeOldMessages(System.currentTimeMillis());
-        //----------------------------------------------------------------------done rfr--------------------------------
+        //----------------------------------------------------------------------done --------------------------------
         if (input.indexOf("register") == 0) {
           String[] participantInput = input.split("#");
           try {
@@ -177,7 +172,7 @@ class workerThread extends Thread {
             System.err.println("Error sending registration confirmation: " + e.getMessage());
           }
         }
-        //---------------------------------------------------------------------------------done rfr--------------------
+        //---------------------------------------------------------------------------------done --------------------
         else if (input.contains("deregister")) {
           String[] participantInput = input.split("#");
           try {
@@ -211,7 +206,7 @@ class workerThread extends Thread {
           }
         }
 
-        //---------------------------------------------------------------------------done rfr------------------------------
+        //---------------------------------------------------------------------------done------------------------------
         else if (input.contains("reconnect")) {
           String[] participantInput = input.split("#");
           try {
@@ -267,7 +262,7 @@ class workerThread extends Thread {
           }
         }
 
-        //---------------------------------------------------------------------------done rfr---------------------------------------------------
+        //---------------------------------------------------------------------------done ---------------------------------------------------
         else if (input.contains("disconnect")) {
           String[] particpantInput = input.split("#");
           try {
@@ -297,7 +292,7 @@ class workerThread extends Thread {
             System.err.println("Error sending message to participant: " + e.getMessage());
           }
         }
-        //---------------------------------------------------------------------------done rfr---------------------------------------------------
+        //---------------------------------------------------------------------------done ---------------------------------------------------
         else if (input.contains("msend")) {
           String[] particpantInput = input.split("#");
           try {
@@ -333,7 +328,7 @@ class workerThread extends Thread {
   }
 }
 
-//---------------------------------------------------------------------------done rfr---------------------------------------------------
+//---------------------------------------------------------------------------done---------------------------------------------------
 public class Coordinator {
 
   public Coordinator(int port, int timeout) {
