@@ -136,7 +136,6 @@ class workerThread extends Thread {
   // constructor with port
   @Override
   public void run() {
-    // starts server and waits for a connection
     try {
       String input = "";
       String errorMessage = "You ARE NOT REGISTERED!!";
@@ -332,12 +331,10 @@ class workerThread extends Thread {
 public class Coordinator {
 
   public Coordinator(int port, int timeout) {
-    // Launches the connection handling thread with specified port and timeout
     new connectionThread(port, timeout).start();
   }
 
   public static void main(String[] args) {
-    // Validate the command-line arguments for the configuration file path
     if (args.length != 1) {
       System.out.println("Error: Missing arguments. Usage: java Coordinator <configuration-file-path>");
       return;
@@ -352,8 +349,6 @@ public class Coordinator {
     try (Scanner scanner = new Scanner(configFile)) {
       int coordinatorListenPort = Integer.parseInt(scanner.nextLine().trim());
       int messageTimeout = Integer.parseInt(scanner.nextLine().trim());
-
-      // Start the coordinator with the configuration
       new Coordinator(coordinatorListenPort, messageTimeout);
       System.out.println("Coordinator is running...");
     } catch (FileNotFoundException e) {
