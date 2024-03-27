@@ -234,7 +234,6 @@ class receiverThread implements Runnable {
     receiverThread(String fname, int port) {
         this.fileName = fname;
         this.listenport = port;
-        // Immediately starting the thread upon instantiation
         new Thread(this).start();
     }
 
@@ -297,10 +296,7 @@ class receiverThread implements Runnable {
 }
 
 public class Participant {
-
-    //Participant with IP address and port
     public Participant(int id, String logFile, String address, int nPort) {
-        // Starting worker thread
         System.out.println("Initializing participant with ID: " + id);
         new workerThread(id, logFile, address, nPort).start();
     }
