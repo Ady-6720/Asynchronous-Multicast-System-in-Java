@@ -40,7 +40,7 @@ Open a terminal in the Server directory and enter the following commands:
 
 ```bash
 javac Coordinator.java
-java Coordinator coordinator-conf.txt
+java Coordinator Cconfig.txt
 ```
 
 The server opens a socket and is ready for connection!
@@ -51,7 +51,7 @@ Open a terminal on the separate systems in the Client directory and enter the fo
 
 ```bash
 javac Participant.java
-java Participant participant-conf.txt
+java Participant P1config.txt
 ```
 
 Configuration files are included in the repository.
