@@ -64,8 +64,8 @@ This project was done in its entirety by **Aditya Malode** and **Yash Joshi**. W
 
 ### Members
 
-1. Aditya Malode
-2. Yash Joshi
+1. Aditya Malode (811656637)
+2. Yash Joshi (811420683)
 ```
 
 
