@@ -33,11 +33,11 @@ class connectionThread extends Thread {
     @Override
     public void run() {
         try (ServerSocket server = new ServerSocket(port)) {
-            System.out.println("Server listening on port: " + port);
+            System.out.println("Coordinator listening on port: " + port);
 
             // Continuously accepting new connections unless interrupted
             while (!Thread.interrupted()) {
-                System.out.println("Awaiting new connection...");
+                System.out.println("Looking for new Participant........");
 
                 try {
                     Socket socket = server.accept();
@@ -54,7 +54,7 @@ class connectionThread extends Thread {
                 }
             }
         } catch (IOException e) {
-            System.err.println("Server could not start on port " + port + ": " + e.getMessage());
+            System.err.println("Coordinator could not start on port " + port + ": " + e.getMessage());
         }
     }
 }
@@ -70,7 +70,7 @@ class messageSender extends Thread {
     this.message = message;
     this.senderID = senderID;
   }
-  //---------------------------------------------------------------------------done ---------------------------------------------------
+
   @Override
   public void run() {
     Globals.activeParticipants.forEach(participantID -> {
@@ -178,7 +178,7 @@ class workerThread extends Thread {
             String participantIP = participantInput[2];
             int participantListenPort = Integer.parseInt(participantInput[3]);
 
-            System.out.println("Attempting to register new participant with ID: " + participantID);
+            //System.out.println("Attempting to register new participant with ID: " + participantID);
 
             try {
                 Socket socket = new Socket(participantIP, participantListenPort);
@@ -204,7 +204,7 @@ class workerThread extends Thread {
         String[] participantInput = input.split("#");
         try {
             Integer participantID = Integer.parseInt(participantInput[1]);
-            System.out.println("Attempting to deregister participant with ID: " + participantID);
+            //System.out.println("Attempting to deregister participant with ID: " + participantID);
 
             if (Globals.participantMap.containsKey(participantID)) {
                 try {
@@ -222,7 +222,7 @@ class workerThread extends Thread {
                     out.writeUTF("Failed to fully deregister participant.");
                 }
             } else {
-                System.err.println("Attempt to deregister a non-existing participant with ID: " + participantID);
+                //System.err.println("Attempt to deregister a non-existing participant with ID: " + participantID);
                 out.writeUTF(errorMessage);
             }
         } catch (NumberFormatException e) {
@@ -238,7 +238,7 @@ class workerThread extends Thread {
         String[] participantInput = input.split("#");
         try {
             Integer participantID = Integer.parseInt(participantInput[1]);
-            System.out.println("Attempting to reconnect participant with ID: " + participantID);
+            //System.out.println("Attempting to reconnect participant with ID: " + participantID);
 
             if (Globals.participantMap.containsKey(participantID)) {
                 if (!Globals.activeParticipants.contains(participantID)) {
@@ -294,7 +294,7 @@ class workerThread extends Thread {
         String[] participantInput = input.split("#");
         try {
             Integer participantID = Integer.parseInt(participantInput[1]);
-            System.out.println("Attempting to disconnect participant with ID: " + participantID);
+            //System.out.println("Attempting to disconnect participant with ID: " + participantID);
 
             if (Globals.participantMap.containsKey(participantID)) {
                 try {
@@ -332,7 +332,7 @@ class workerThread extends Thread {
                     String message = participantInput[1];
                     System.out.println("Sending message from ID " + senderID + ": \"" + message + "\"");
                     new messageSender(message, senderID).start();
-                    out.writeUTF("Message Acknowledged");
+                    out.writeUTF("  Message Acknowledged");
                 } else {
                     System.err.println("msend request from a non-connected participant ID: " + senderID);
                     out.writeUTF("Requested Participant is not Connected");
@@ -350,9 +350,6 @@ class workerThread extends Thread {
     }
 }
 
-
-
-//---------------------------------------------------------------------------done---------------------------------------------------
 public class Coordinator {
 
   public Coordinator(int port, int timeout) {
